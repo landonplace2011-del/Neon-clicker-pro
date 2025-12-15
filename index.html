@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ultimate Clicker</title>
+
+<style>
+:root {
+  --bg:#0f1220;
+  --panel:#181c3a;
+  --accent:#4ade80;
+  --accent2:#60a5fa;
+  --danger:#ef4444;
+  --text:#e5e7eb;
+}
+
+* {
+  box-sizing:border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  text-align:center;
+}
+
+h1 { margin:10px 0; }
+
+button {
+  background:var(--accent);
+  border:none;
+  padding:12px;
+  border-radius:10px;
+  font-size:16px;
+  cursor:pointer;
+  margin:5px;
+}
+
+button:disabled {
+  opacity:0.4;
+  cursor:not-allowed;
+}
+
+.panel {
+  background:var(--panel);
+  margin:10px;
+  padding:15px;
+  border-radius:15px;
+}
+
+.tabs button {
+  background:var(--accent2);
+}
+
+.hidden { display:none; }
+
+.upgrade {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:8px 0;
+  background:#0b0f2a;
+  padding:10px;
+  border-radius:10px;
+}
+
+input {
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  width:80%;
+  margin:5px 0;
+}
+
+.leaderboard-entry {
+  display:flex;
+  justify-content:space-between;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🔥 Ultimate Clicker</h1>
+
+<div class="panel">
+  <div>Player: <b id="playerName"></b></div>
+  <button onclick="changeName()">Change Name</button>
+</div>
+
+<div class="panel">
+  <h2>Clicks</h2>
+  <h1 id="clicks">0</h1>
+  <button style="font-size:24px" onclick="manualClick()">CLICK</button>
+  <div>Click Power: <span id="clickPower">1</span></div>
+  <div>Auto CPS: <span id="cps">0</span></div>
+</div>
+
+<div class="panel tabs">
+  <button onclick="showTab('click')">Click Power</button>
+  <button onclick="showTab('auto')">Auto</button>
+  <button onclick="showTab('multi')">Multipliers</button>
+  <button onclick="showTab('prestige')">Prestige</button>
+  <button onclick="showTab('leader')">Leaderboard</button>
+</div>
+
+<!-- CLICK POWER -->
+<div class="panel" id="tab-click">
+  <h2>Click Power Upgrades</h2>
+  <div id="clickUpgrades"></div>
+</div>
+
+<!-- AUTO -->
+<div class="panel hidden" id="tab-auto">
+  <h2>Auto Clickers</h2>
+  <div id="autoUpgrades"></div>
+</div>
+
+<!-- MULTIPLIER -->
+<div class="panel hidden" id="tab-multi">
+  <h2>Multipliers</h2>
+  <div id="multiUpgrades"></div>
+</div>
+
+<!-- PRESTIGE -->
+<div class="panel hidden" id="tab-prestige">
+  <h2>Prestige</h2>
+  <p>Prestige Level: <b id="prestigeLevel">0</b></p>
+  <p>Prestige Bonus: +<span id="prestigeBonus">0</span>%</p>
+  <button style="background:var(--danger)" onclick="prestige()">PRESTIGE RESET</button>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="panel hidden" id="tab-leader">
+  <h2>Leaderboard</h2>
+  <button onclick="generateCode()">Generate Share Code</button>
+  <p id="shareCode"></p>
+  <input id="codeInput" placeholder="Paste friend code">
+  <button onclick="addCode()">Add</button>
+  <div id="leaderboard"></div>
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("clickerSave")) || {
+  name: "",
+  clicks: 0,
+  clickPower: 1,
+  cps: 0,
+  prestige: 0,
+  leaders: []
+};
+
+if(!data.name){
+  data.name = prompt("Enter your name:");
+  save();
+}
+
+const clickUpgrades = [
+  {name:"+1 Click", cost:10, power:1},
+  {name:"+5 Clicks", cost:100, power:5},
+  {name:"+25 Clicks", cost:1000, power:25},
+  {name:"+100 Clicks", cost:5000, power:100}
+];
+
+const autoUpgrades = [
+  {name:"Cursor", cost:50, cps:1},
+  {name:"Bot", cost:500, cps:5},
+  {name:"Factory", cost:5000, cps:25},
+  {name:"AI Core", cost:50000, cps:150}
+];
+
+const multiUpgrades = [
+  {name:"x2 Power", cost:1000, mult:2},
+  {name:"x3 Power", cost:5000, mult:3}
+];
+
+function save(){
+  localStorage.setItem("clickerSave", JSON.stringify(data));
+}
+
+function manualClick(){
+  data.clicks += data.clickPower * (1 + data.prestige * 0.1);
+  update();
+}
+
+function update(){
+  document.getElementById("clicks").textContent = Math.floor(data.clicks);
+  document.getElementById("clickPower").textContent = data.clickPower;
+  document.getElementById("cps").textContent = data.cps;
+  document.getElementById("playerName").textContent = data.name;
+  document.getElementById("prestigeLevel").textContent = data.prestige;
+  document.getElementById("prestigeBonus").textContent = data.prestige * 10;
+  renderUpgrades();
+  renderLeaderboard();
+  save();
+}
+
+function renderUpgrades(){
+  document.getElementById("clickUpgrades").innerHTML="";
+  clickUpgrades.forEach(u=>{
+    let d=document.createElement("div");
+    d.className="upgrade";
+    d.innerHTML=`${u.name} (${u.cost}) <button ${data.clicks<u.cost?"disabled":""}>Buy</button>`;
+    d.querySelector("button").onclick=()=>{
+      data.clicks-=u.cost;
+      data.clickPower+=u.power;
+      u.cost=Math.floor(u.cost*1.8);
+      update();
+    };
+    document.getElementById("clickUpgrades").appendChild(d);
+  });
+
+  document.getElementById("autoUpgrades").innerHTML="";
+  autoUpgrades.forEach(u=>{
+    let d=document.createElement("div");
+    d.className="upgrade";
+    d.innerHTML=`${u.name} (${u.cost}) <button ${data.clicks<u.cost?"disabled":""}>Buy</button>`;
+    d.querySelector("button").onclick=()=>{
+      data.clicks-=u.cost;
+      data.cps+=u.cps;
+      u.cost=Math.floor(u.cost*2);
+      update();
+    };
+    document.getElementById("autoUpgrades").appendChild(d);
+  });
+}
+
+function prestige(){
+  if(confirm("Reset progress for permanent bonuses?")){
+    data.clicks=0;
+    data.clickPower=1;
+    data.cps=0;
+    data.prestige++;
+    update();
+  }
+}
+
+function generateCode(){
+  document.getElementById("shareCode").textContent =
+    btoa(JSON.stringify({n:data.name,s:Math.floor(data.clicks)}));
+}
+
+function addCode(){
+  try{
+    let obj=JSON.parse(atob(document.getElementById("codeInput").value));
+    data.leaders.push(obj);
+    update();
+  }catch{}
+}
+
+function renderLeaderboard(){
+  let div=document.getElementById("leaderboard");
+  div.innerHTML="";
+  [...data.leaders,{n:data.name,s:Math.floor(data.clicks)}]
+    .sort((a,b)=>b.s-a.s)
+    .forEach(e=>{
+      let d=document.createElement("div");
+      d.className="leaderboard-entry";
+      d.innerHTML=`<span>${e.n}</span><span>${e.s}</span>`;
+      div.appendChild(d);
+    });
+}
+
+function showTab(t){
+  ["click","auto","multi","prestige","leader"].forEach(x=>{
+    document.getElementById("tab-"+x).classList.add("hidden");
+  });
+  document.getElementById("tab-"+t).classList.remove("hidden");
+}
+
+function changeName(){
+  data.name=prompt("New name:");
+  update();
+}
+
+setInterval(()=>{
+  data.clicks += data.cps;
+  update();
+},1000);
+
+update();
+</script>
+</body>
+</html>
